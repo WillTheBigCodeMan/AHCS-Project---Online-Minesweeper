@@ -1,0 +1,97 @@
+@font-face {
+  font-family: "MINE-SWEEPER";
+  font-style: normal;
+  font-weight: 400;
+  src: url("fonts/mine-sweeper.ttf");
+}
+
+* {
+  margin: 0px;
+  padding: 0px;
+  font-family: 'MINE-SWEEPER';
+}
+
+html {
+  background-color: #111234;
+}
+
+#game{
+  width: 640px;
+  height:640px;
+  margin-top: 20px;
+}
+
+body {
+  height: calc(100vh - 80px);
+  width: calc(100vw - 80px);
+  border-radius: 30px;
+  padding: 20px;
+  display: flex;
+  color: #E4D9FF;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+#logo {
+  width:200px;
+  padding-top: 30px;
+  display: grid;
+  margin: auto;
+}
+
+.info {
+  font-size: 16px;
+  color: #222222;
+  text-align: center;
+  padding: 20px;
+  margin: auto;
+  width: 300px;
+}
+
+#nickname,
+#joinGame {
+  border: 2px solid black;
+  border-radius: 12px;
+  height: 30px;
+  color: black;
+  margin: auto;
+  width: 300px;
+  text-align: center;
+  display: block;
+}
+
+#joinGame {
+  margin-top: 20px;
+  box-sizing: content-box;
+  background-color: white;
+  transition: ease-in-out 0.5s;
+  background-image: linear-gradient(45deg, #AF2BBF, #FAFAFF);
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+}
+
+#joinGame:hover {
+  background-size: 100% 100%;
+}
+
+#content {
+  position: absolute;
+  width: 400px;
+  height: 60%;
+  top: 20vh;
+  bottom: 10vh;
+  left: calc((50vw - 200px));
+  background-color: #FAFAFF;
+  border-radius: 10px;
+  box-shadow: #262626 -1px 2px 4px 4px;
+}
+
+#backgroundCanv {
+  position: absolute;
+  z-index: -10;
+  top: 0px;
+  left: 0px;
+}
