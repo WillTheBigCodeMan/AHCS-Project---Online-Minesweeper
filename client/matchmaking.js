@@ -16,14 +16,15 @@ function enterQueue() {
     document.getElementById("joinGame").onclick = "";
     document.getElementById("joinGame").innerHTML = "Matchmaking";
     connect();
+    
   }
 }
 
 async function connect() {
   await matchmakingChannel.subscribe(matchmakingChannel.connectionManager.connectionDetails.clientId, (message) => {
     if (message.data[0] == 'i') {
-      console.log(message.data);
       localStorage.setItem("playerId", message.data);
+      matchmakingChannel.publish(message.data, document.getElementById("nickname").value);
     } else {
       localStorage.setItem("currentGame", message.data);
       window.location.replace("/gameroom");

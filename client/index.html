@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Minesweeper</title>
+    <link type="text/css" href="index.css" rel="stylesheet" />
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans"
+    />
+  </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <title>Minesweeper</title>
-  <link type="text/css" href="style.css" rel="stylesheet" />
-  <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans">
-</head>
-
-<body>
-  <canvas id="backgroundCanv" width="100" height="100"></canvas>
-  <div id="content">
-    <img src="MinesweeperLogo.svg" id="logo">
-    <p class="info" style="width:350px">Welcome to Minesweeper online, a multiplayer version of minesweeper. Enter a
-      nickname into the box below to get started.</p>
-    <input type="text" contenteditable="true" id="nickname" placeholder="Nickname" style="font-size: 24;">
-    <button id="joinGame" onclick="enterQueue()">Join Game!</button>
-  </div>
-</body>
-<script src="matchmaking.js"></script>
-<script src ="bgAnimation.js"></script>
-
+  <body>
+    <canvas id="backgroundCanv" width="100" height="100"></canvas>
+    <div id="content">
+      <img src="MinesweeperLogo.svg" id="logo" />
+      <p class="info" style="width: 350px">
+        Welcome to Minesweeper online, a multiplayer version of minesweeper.
+        Enter a nickname into the box below to get started.
+      </p>
+      <input
+        type="text"
+        id="nickname"
+        placeholder="Nickname"
+        style="font-size: 24"
+      />
+      <button id="joinGame" onclick="enterQueue()">Join Game!</button>
+    </div>
+  </body>
+  <script src="matchmaking.js"></script>
+  <script src="bgAnimation.js"></script>
 </html>

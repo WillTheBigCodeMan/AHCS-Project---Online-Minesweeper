@@ -1,16 +1,18 @@
 if (localStorage.getItem("playerId") == null) {
   window.location.replace("/");
-}
+} 
 
 console.log(localStorage.getItem("playerId"));
 
 let board = [];
 let revealed = [];
 let flagged = [];
-let width = 15;
-let height = 15;
+
+const width = 15;
+const height = 15;
 const ctx = document.getElementById("game").getContext("2d");
 const cvs = document.getElementById("game");
+
 let box = cvs.getBoundingClientRect();
 let mouseX;
 let mouseY;
@@ -37,10 +39,14 @@ async function gameCommands() {
           document.getElementById("playerRole").innerText = "Solver";
           document.getElementById("roleDescription").innerText = "Your goal is to solve the board like a regular game of minesweeper, however you must give some information about the board away to the bomber who will try to set off a mine before you can flag them all. Good luck!";
           role = "solver";
+          document.getElementById("playerUsername").innerText = message.data.nickname1;
+          document.getElementById("opponentName").innerText = message.data.nickname2;
         } else {
           document.getElementById("playerRole").innerText = "Bomber";
           document.getElementById("roleDescription").innerText = "Your goal is to set off a mine before the solver can finish solving the grid, you will recieve limited information from the solver and must use this to find a mine. Good luck!"
           role = "bomber";
+          document.getElementById("playerUsername").innerText = message.data.nickname2;
+          document.getElementById("opponentName").innerText = message.data.nickname1;
         }
         initGrid();
         renderGrid();
@@ -61,9 +67,9 @@ async function gameCommands() {
 
 async function gameUpdates() {
   await gameChannel.subscribe(role, (message) => {
+    getTimes();
     if (role == "solver") {
       if (typeof (message.data) == "object") {
-        console.log(message.data);
         for (let i = 0; i < message.data.length - 1; i++) {
           revealed[message.data[i].x][message.data[i].y] = true;
           board[message.data[i].x][message.data[i].y] = message.data[i].val;
@@ -73,10 +79,9 @@ async function gameUpdates() {
         revealAmount += Math.floor(tot / 5);
         leftover = tot - (Math.floor(tot / 5) * 5);
         collecting = true;
-        document.getElementById("confirmButton").style.display = "block";
+        document.getElementById("confirmButton").style.backgroundColor = "aliceblue";
       }
     } else {
-      console.log(message.data);
       if (typeof (message.data) == "object") {
         for (let i = 0; i < message.data.length; i++) {
           revealed[message.data[i].x][message.data[i].y] = true;
@@ -101,8 +106,8 @@ document.addEventListener('click', async (event) => {
   box = cvs.getBoundingClientRect();
   if (event.x > box.left && event.x < box.right && event.y > box.top && event.y < box.bottom) {
     let selected = {
-      x: Math.floor((event.x - box.left) / (parseInt(cvs.style.width.substring(0, cvs.style.width.length - 2)) / width)),
-      y: Math.floor((event.y - box.top) / (parseInt(cvs.style.height.substring(0, cvs.style.height.length - 2)) / height))
+      x: Math.floor((event.x - box.left) / (box.width/ width)),
+      y: Math.floor((event.y - box.top) / (box.height / height))
     };
     if (!collecting && event.button == 0) {
       await gameChannel.publish("input", { position: selected, type: "left", player: localStorage.getItem("playerId") });
@@ -137,7 +142,7 @@ function initGrid() {
 
 
 function renderGrid() {
-  ctx.fillStyle = "#FFFFFF";
+  ctx.fillStyle = "#BBB";
   ctx.fillRect(0, 0, 800, 800);
   for (let i = 0; i < board.length; i++) {
     for (let j = 0; j < board[i].length; j++) {
@@ -151,6 +156,7 @@ function renderGrid() {
       ctx.stroke = "#000000";
       ctx.strokeRect(i * (800 / width), j * (800 / height), (800 / width), (800 / height));
       if (revealed[i][j] && board[i][j] > 0) {
+        rect(i, j, "#FFF", "#000000");
         ctx.fillStyle = "#000000";
         ctx.font = "30px Arial";
         ctx.fillText(board[i][j].toString(), i * (800 / width) + 16, j * (800 / height) + 40);
@@ -177,8 +183,8 @@ document.addEventListener('mousemove', (e) => {
 async function rightClick() {
   box = cvs.getBoundingClientRect();
   let selected = {
-    x: Math.floor((mouseX- box.left) / (parseInt(cvs.style.width.substring(0, cvs.style.width.length - 2)) / width)),
-    y: Math.floor((mouseY - box.top) / (parseInt(cvs.style.height.substring(0, cvs.style.height.length - 2)) / height))
+    x: Math.floor((event.x - box.left) / (box.width/ width)),
+    y: Math.floor((event.y - box.top) / (box.height / height))
   };
   await gameChannel.publish("input", { position: selected, type: "right", player: localStorage.getItem("playerId") });
     let found = false;
@@ -207,7 +213,7 @@ window.addEventListener('contextmenu', (event) => {
 
 async function confirmSelected() {
   if(currentCollected.length >= revealAmount){
-    document.getElementById("confirmButton").style.display = "none";
+    document.getElementById("confirmButton").style.backgroundColor = "lightgray";
     for(let i = 0; i < currentCollected.length; i++){
       if(currentCollected[i].fixed == false){
         currentCollected[i].fixed = true;
@@ -218,3 +224,12 @@ async function confirmSelected() {
     collecting = false;
   }
 }
+
+async function getTimes() {
+  await gameChannel.subscribe("time", (message) => {
+    document.getElementById("opponentTimer").innerText = formatTime(role=="solver" ? message.data.bomberTime : message.data.solverTime);
+    document.getElementById("playerTimer").innerText = formatTime(role=="bomber" ? message.data.bomberTime : message.data.solverTime);
+  })
+}
+
+const formatTime = (x) => Math.floor(x/60).toString() + ":" + (x%60<10? "0" : "") + (x%60).toString();

@@ -1,3 +1,5 @@
+/* --------------- IMPORTS --------------- */
+
 @font-face {
   font-family: "MINE-SWEEPER";
   font-style: normal;
@@ -5,26 +7,35 @@
   src: url("fonts/mine-sweeper.ttf");
 }
 
-* {
-  margin: 0px;
-  padding: 0px;
-  font-family: 'MINE-SWEEPER';
+/* --------------- Variables --------------- */
+
+:root{
+  --BACKGROUND-COLOUR: #111234;
 }
+
+/* --------------- RESET --------------- */
+
+* {
+  margin: 0;
+  padding: 0;
+  font-family: 'MINE-SWEEPER';
+  box-sizing: border-box;
+}
+
+/* --------------- IMPORTS --------------- */
 
 html {
-  background-color: #111234;
+  background-color: var(--BACKGROUND-COLOUR);
 }
 
-#game{
-  width: 640px;
-  height:640px;
-  margin-top: 20px;
+.gameCanvas{
+  width: 40%;
+  height:auto;
+  margin-top: 1.5rem;
 }
 
 body {
-  height: calc(100vh - 80px);
-  width: calc(100vw - 80px);
-  border-radius: 30px;
+  width:100%;
   padding: 20px;
   display: flex;
   color: #E4D9FF;

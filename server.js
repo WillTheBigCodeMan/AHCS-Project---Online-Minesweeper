@@ -6,11 +6,11 @@ let totalPlayers = 0;
 let currentGames = [];
 let gameChannels = [];
 let queue = [];
-let width = 15;
-let height = 15;
-let mines = 40;
+const width = 15;
+const height = 15;
+const mines = 40;
 
-let apiKey = "EPShlg.7aXq-w:yRIF96jnwBoMRKSyzwYGWZOBPp4xuHOxPwDD4rhZjjw";
+const apiKey = "EPShlg.7aXq-w:yRIF96jnwBoMRKSyzwYGWZOBPp4xuHOxPwDD4rhZjjw";
 
 const realtime = new Ably.Realtime({
   key: apiKey,
@@ -66,28 +66,43 @@ async function matchmaking() {
     if (!queue.includes(player.clientId)) {
       queue.push([player.clientId, uniqueId()]);
       await matchmakingChannel.publish(queue[queue.length - 1][0], queue[queue.length - 1][1]);
+      matchmakingChannel.subscribe(queue[queue.length - 1][1], async (message) => {
+        for(let i = 0; i < queue.length; i ++){
+          if(queue[i][1] == message.name){
+            queue[i].push(message.data);
+            createGames();
+          }
+        }
+      })
       totalPlayers++;
-    }
-    while (queue.length >= 2) {
-      for (let i = 0; i < 2; i++) {
-        await matchmakingChannel.publish(queue[i][0], ("gameChannel" + currentGames.length.toString()));
-      }
-      gameChannels.push(realtime.channels.get("gameChannel" + currentGames.length.toString()));
-      currentGames.push(new Game(queue[0][1], queue[1][1], 0));
-      queue.splice(0, 2);
-      gameLoop();
     }
   });
 }
 
+async function createGames() {
+  while (queue.length >= 2) {
+    for (let i = 0; i < 2; i++) {
+      await matchmakingChannel.publish(queue[i][0], ("gameChannel" + currentGames.length.toString()));
+    }
+    gameChannels.push(realtime.channels.get("gameChannel" + currentGames.length.toString()));
+    currentGames.push(new Game(queue[0][1], queue[1][1], 0, queue[0][2], queue[1][2]));
+    queue.splice(0, 2);
+    gameLoop();
+  }
+}
+
 class Game{
-  constructor(p1, p2, cP){
+  constructor(p1, p2, cP, nN1, nN2){
     this.player1 = p1;
+    this.nickname1 = nN1;
+    this.nickname2 = nN2;
     this.player2 = p2;
     this.connectedPlayers = cP;
     this.board = [];
     this.turn = 0;
     this.revealed = [];
+    this.player1Time = 300;
+    this.player2Time = 60;
   }
   
   generateBlank(){
@@ -147,18 +162,27 @@ class Game{
   }
 }
 
+setInterval(async () => {
+  for(let i = 0; i < currentGames.length; i++){
+    if(currentGames[i].turn%2==0){
+      currentGames[i].player1Time --;
+    } else {
+      currentGames[i].player2Time --;
+    }
+    await gameChannels[i].publish("time", {solverTime: currentGames[i].player1Time, bomberTime:currentGames[i].player2Time});
+  }
+}, 1000);
+
 async function gameLoop() {
   for (let i = 0; i < gameChannels.length; i++) {
     gameChannels[i].presence.subscribe("enter", async (player) => {
       currentGames[i].connectedPlayers++;
       if (currentGames[i].connectedPlayers == 2) {
-        console.log("aa");
         currentGames[i].generateBlank();
-        await gameChannels[i].publish("commands", { p1: currentGames[i].player1, p2: currentGames[i].player2, identifier: "playerRoles" })
+        await gameChannels[i].publish("commands", { p1: currentGames[i].player1, p2: currentGames[i].player2, nickname1:currentGames[i].nickname1, nickname2:currentGames[i].nickname2, identifier: "playerRoles" })
       }
     });
     gameChannels[i].subscribe("input", async (message) => {
-      console.log(message.data);
       if (currentGames[i].turn == 0 && message.data.player == currentGames[i].player1) {
         currentGames[i].genBoard(message.data.position.x, message.data.position.y);
       }
@@ -166,7 +190,6 @@ async function gameLoop() {
         if(currentGames[i].board[message.data.position.x][message.data.position.y] == -1){
           await gameChannels[i].publish("commands", {winner:"bomber", identifier:"winLoss"});
         }
-        currentGames[i].incrementTurn();
         let fullRevealed = waterfall(message.data.position.x, message.data.position.y, currentGames[i]);
         fullRevealed.push({x:message.data.position.x, y:message.data.position.y, val:currentGames[i].board[message.data.position.x][message.data.position.y]});
         let newRevealed = [];
@@ -205,7 +228,8 @@ async function gameLoop() {
       for (let j = 0; j < message.data.length; j++) {
         revealed.push({ x: message.data[j].pos.x, y: message.data[j].pos.y, value: currentGames[i].board[message.data[j].pos.x][message.data[j].pos.y] });
       }
-      await gameChannels[i].publish("bomber", revealed)
+      await gameChannels[i].publish("bomber", revealed);
+      currentGames[i].incrementTurn();
     });
   }
 }
