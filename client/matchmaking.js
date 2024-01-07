@@ -16,7 +16,6 @@ function enterQueue() {
     document.getElementById("joinGame").onclick = "";
     document.getElementById("joinGame").innerHTML = "Matchmaking";
     connect();
-    
   }
 }
 
