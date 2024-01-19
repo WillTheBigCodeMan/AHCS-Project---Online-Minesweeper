@@ -2,6 +2,7 @@ if (localStorage.getItem("playerId") == null) {
   window.location.replace("/");
 } 
 
+
 console.log(localStorage.getItem("playerId"));
 
 let board = [];

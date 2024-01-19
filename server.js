@@ -1,17 +1,21 @@
-/* ----------------------------------- IMPORTS - References the required node JS modules for the program ----------------------------------- */
+/*
+! ----------------------------------- IMPORTS - References the required node JS modules for the program ----------------------------------- !
+*/
 
 const express = require("express");
 const Ably = require("ably");
 const app = express();
 
-/* ----------------------------------- VARIABLES  ----------------------------------- */
+/*
+! ----------------------------------- VARIABLES  ----------------------------------- !
+*/
 
 /* Game variables - Variables necessary to store game and player data */
 
 let totalPlayers = 0;
 let currentGames = [];
 let gameChannels = [];
-let queue = [];
+let queue = {};
 const width = 15;
 const height = 15;
 const mines = 40;
@@ -27,10 +31,9 @@ const realtime = new Ably.Realtime({
   echoMessages: false, //Stops server receiving its own messages
 });
 
-/* Tells the app to listen at port 3000 from the webpages url(while the server isn't published this is localhost or 127.0.0.1). 
-Stores the associated HTTP server in the vairable listener. */
+/* Tells the app to listen at port 3000 from the webpages url(while the server isn't published this is localhost or 127.0.0.1). Stores the associated HTTP server in the vairable listener. */
 
-const listener = app.listen(3000, () => {
+const listener = app.listen(4000, () => {
   console.log("Your app is listening on port " + listener.address().port);
 });
 
@@ -38,7 +41,9 @@ const listener = app.listen(3000, () => {
 
 const matchmakingChannel = realtime.channels.get("matchmaking");
 
-/* ----------------------------------- CLASSES  -----------------------------------  */
+/*
+! ----------------------------------- CLASSES  -----------------------------------  !
+*/
 
 /* Defines a class which creates the template for objects that can store and handle all the logic of an individual game. */
 
@@ -57,9 +62,11 @@ class Game {
     this.player2Time = 60;
   }
 
-  /* ----------------------------------- METHODS  ----------------------------------- */
+  /*
+  ! ----------------------------------- METHODS  ----------------------------------- !
+  */
 
-  /* Defines a method which populates both the board and revealed instance variables as 2D arrays of dimensions width by height (lines 15/16). 
+  /* Defines a method which populates both the board and revealed instance variables as 2D arrays of dimensions width by height (lines 15/16).
   It fills the board with -2 in every entry and the revealed array with false in every entry */
 
   generateBlank() {
@@ -73,7 +80,7 @@ class Game {
     }
   }
 
-  /* Defines a method which, given the position of first input, randomly generates a minesweeper grid with an amount of mines dictated by 
+  /* Defines a method which, given the position of first input, randomly generates a minesweeper grid with an amount of mines dictated by
   the mines variable defined earlier. */
 
   genBoard(fX, fY) {
@@ -87,7 +94,7 @@ class Game {
       }
     }
 
-    /*Loops for the amount of mines and chooses a random spot (which is not alread occupied by a mine or 
+    /*Loops for the amount of mines and chooses a random spot (which is not alread occupied by a mine or
       blank space around the first input) to place a mine (denoted by a value of -1 in the grid) */
 
     for (let i = 0; i < mines; i++) {
@@ -100,7 +107,8 @@ class Game {
       this.board[x][y] = -1;
     }
 
-    // For every square on the grid that isn't a mine, counts the total amount of mines in all adjacent squares and stores this value in the grid array.
+    // For every square on the grid that isn't a mine, counts the total amount of
+    // mines in all adjacent squares and stores this value in the grid array.
 
     for (let i = 0; i < width; i++) {
       for (let j = 0; j < height; j++) {
@@ -136,16 +144,17 @@ class Game {
     this.revealed[x][y] = true;
   }
 }
-
-/* ----------------------------------- FUNCTIONS  -----------------------------------  */
+/* 
+! ----------------------------------- FUNCTIONS ----------------------------------- !
+*/
 
 /* Defines a funtion which returns a randomly generated id string to be used to identify players */
 
-function uniqueId() {
-  return "id-" + totalPlayers + Math.random().toString(36).substr(2, 16);
+function uniqueId(prefix) {
+  return prefix + "-" + totalPlayers + Math.random().toString(36).substr(2, 16);
 }
 
-/* Defines a function which concatenates any two 1D arrays a and b */
+/* Defines a function which concatenates any two 1 D arrays a and b */
 
 function concat(a, b) {
   let c = new Array(a.length + b.length);
@@ -159,74 +168,93 @@ function concat(a, b) {
   return c;
 }
 
+/* This functions handles matchmaking, it checks for when clients join the queue and assigns them to unique gamerooms. */
+
 async function matchmaking() {
   matchmakingChannel.presence.subscribe("enter", async (player) => {
+    // Code which is called whenever a player joins the queue
     if (!queue.includes(player.clientId)) {
-      queue.push(player.clientId);
-      await matchmakingChannel.publish(queue[queue.length - 1]);
-      matchmakingChannel.subscribe(
-        queue[queue.length - 1],
-        async (message) => {
-          for (let i = 0; i < queue.length; i++) {
-            if (queue[i][1] == message.name) {
-              queue[i].push(message.data);
-              createGames();
-            }
-          }
-        }
-      );
+      // If the player is not already in the queue.
+      queue[player.clientId] = ""; //Add the player to the queue.
+      await matchmakingChannel.publish(player.clientId, "Request Nickname"); //Send a message to request the users nickname.
+      matchmakingChannel.subscribe(player.clientId, async (message) => {
+        //Code called on the clients response;
+        queue[message.clientId] = message.data; //Stores the clients nickname;
+        createGames(); //Calls function to try create a game for the player
+      });
       totalPlayers++;
     }
   });
 }
 
+/* This functions handles the creation of gamerooms */
+
 async function createGames() {
   while (queue.length >= 2) {
+    //While there are enough players to make a game
+    let ids = Object.keys(queue); //Get a list of all the player ids in the queue
+    const gc = uniqueId("gc");
     for (let i = 0; i < 2; i++) {
-      await matchmakingChannel.publish(
-        queue[i][0],
-        "gameChannel" + currentGames.length.toString()
-      );
+      //Send a message to the first two players in the queue with a unique name for a messaging channgel
+      await matchmakingChannel.publish(ids[i], gc);
     }
-    gameChannels.push(
-      realtime.channels.get("gameChannel" + currentGames.length.toString())
-    );
+    gameChannels.push(realtime.channels.get(gc)); //Store the new messaging channel in an array
     currentGames.push(
-      new Game(queue[0][1], queue[1][1], 0, queue[0][2], queue[1][2])
-    );
-    queue.splice(0, 2);
-    gameLoop();
+      new Game(ids[0], ids[1], 0, queue[ids[0]], queue[ids[1]])
+    ); // Create a game object and store it
+    delete queue[ids[0]]; // Remove the players that have been given a game from the queue
+    delete queue[ids[1]];
+    gameLoop(); // Start the game loop function
   }
 }
 
+/* This function handles the main bulk of the game logic */
+
 async function gameLoop() {
-  for (let i = 0; i < gameChannels.length; i++) {
-    gameChannels[i].presence.subscribe("enter", async (player) => {
+  gameChannels.forEach((gC) => {
+    //Loop for all currently active games.
+
+    gC.presence.subscribe("enter", async (player) => {
+      //Check for clients connecting to the given game channel
       currentGames[i].connectedPlayers++;
       if (currentGames[i].connectedPlayers == 2) {
-        currentGames[i].generateBlank();
-        await gameChannels[i].publish("commands", {
+        //Once both players connected to the game send the details of each player to the clients.
+        currentGames[i].generateBlank(); //Set up the game board for the current game.
+        await gC.publish("commands", {
           p1: currentGames[i].player1,
           p2: currentGames[i].player2,
           nickname1: currentGames[i].nickname1,
           nickname2: currentGames[i].nickname2,
           identifier: "playerRoles",
         });
+      } else if (currentGames[i].connectedPlayers > 2) {
+        /* 
+        TODO Code for reconnecting players.
+        */
       }
     });
-    gameChannels[i].subscribe("input", async (message) => {
+
+    //Code to handle player input
+
+    gC.subscribe("input", async (message) => {
+      //Code to check for the first solver input and generate positions of the mines
+
       if (
         currentGames[i].turn == 0 &&
-        message.data.player == currentGames[i].player1
+        message.clientId == currentGames[i].player1
       ) {
         currentGames[i].genBoard(
           message.data.position.x,
           message.data.position.y
         );
       }
+
+      //Code for all other solver turns
+
       if (
+        //Check that the player is the solver and that its a left click input
         currentGames[i].turn % 2 == 0 &&
-        message.data.player == currentGames[i].player1 &&
+        message.clientId == currentGames[i].player1 &&
         message.data.type == "left"
       ) {
         if (
@@ -234,96 +262,88 @@ async function gameLoop() {
             message.data.position.y
           ] == -1
         ) {
-          await gameChannels[i].publish("commands", {
+          //If the solver clicks a mine
+          await gC.publish("commands", {
+            //Publish a bomber win
             winner: "bomber",
             identifier: "winLoss",
           });
         }
+
         let fullRevealed = waterfall(
           message.data.position.x,
           message.data.position.y,
-          currentGames[i]
-        );
+          currentGames[i],
+          null
+        ); // Call the waterfall function to get the cells which are now revealed to the solver.
+
         fullRevealed.push({
           x: message.data.position.x,
           y: message.data.position.y,
           val: currentGames[i].board[message.data.position.x][
             message.data.position.y
           ],
-        });
-        let newRevealed = [];
-        for (let i = 0; i < fullRevealed.length; i++) {
-          let valid = true;
-          for (let j = 0; j < newRevealed.length; j++) {
-            if (
-              newRevealed[j].x == fullRevealed[i].x &&
-              newRevealed[j].y == fullRevealed[i].y
-            ) {
-              valid = false;
-              break;
-            }
-          }
-          if (valid) {
-            newRevealed.push(fullRevealed[i]);
-          }
-        }
+        }); // Add the cell at the players input to the revealed tiles
+
         let totVal = 0;
-        for (let i = 0; i < newRevealed.length; i++) {
-          totVal += newRevealed[i].val;
-        }
-        newRevealed.push(totVal);
-        await gameChannels[i].publish("solver", newRevealed);
+        fullRevealed.forEach((x) => (totVal += x.val)); // Calculate the value of the total revealed cells
+        fullRevealed.push(totVal);
+        await gC.publish("solver", fullRevealed); //Publish the revealed information to the solver
       }
-      if (
+
+      //Code to handle the solvers selection of revealed cells.
+
+      gC.subscribe("solverSelection", async (message) => {
+        let revealed = [];
+        message.data.forEach((c) => { //Format the chosen cells and check the values of them
+          revealed.push({
+            x: c.pos.x,
+            y: c.pos.y,
+            value: currentGames[i].board[c.pos.x][c.pos.y],
+          });
+        });
+
+        await gC.publish("bomber", revealed); //Publish the revealed cells to the bomber.
+        currentGames[i].incrementTurn(); //Increase the turn
+      });
+
+      //Code to handle the bombers turn.
+
+      if (//Check that conditions are met for the bombers turn
         currentGames[i].turn % 2 == 1 &&
         message.data.player == currentGames[i].player2 &&
         message.data.type == "left"
       ) {
-        currentGames[i].incrementTurn();
-        if (
-          currentGames[i].board[message.data.position.x][
-            message.data.position.y
-          ] == -1
-        ) {
-          await gameChannels[i].publish("commands", {
+        if (currentGames[i].board[message.data.position.x][message.data.position.y] == -1) { //If the bomber finds a mine
+          await gC.publish("commands", { //Publish that the bomber has won 
             winner: "bomber",
             identifier: "winLoss",
           });
-          console.log("BOMB WIN");
-        } else {
-          let revealed = [
-            {
-              x: message.data.position.x,
-              y: message.data.position.y,
-              value:
-                currentGames[i].board[message.data.position.x][
-                  message.data.position.y
-                ],
-            },
-          ];
-          await gameChannels[i].publish("bomber", revealed);
+        } else { //Publish the value of the tile at the bombers input position
+          let revealed = [{ x: message.data.position.x, y: message.data.position.y, value: currentGames[i].board[message.data.position.x][message.data.position.y]}];
+          await gC.publish("bomber", revealed);
         }
+        
+        currentGames[i].incrementTurn(); //Moves back to the solvers turn
+
       }
     });
-    gameChannels[i].subscribe("solverSelection", async (message) => {
-      let revealed = [];
-      for (let j = 0; j < message.data.length; j++) {
-        revealed.push({
-          x: message.data[j].pos.x,
-          y: message.data[j].pos.y,
-          value:
-            currentGames[i].board[message.data[j].pos.x][message.data[j].pos.y],
-        });
-      }
-      await gameChannels[i].publish("bomber", revealed);
-      currentGames[i].incrementTurn();
-    });
-  }
+  });
 }
 
-function waterfall(x, y, game) {
-  if (game.board[x][y] > 0 && !game.revealed[x][y]) {
+/* This function is a recursive process to find all the revealed cells connected to a given cell */
+
+function waterfall(x, y, game, found) {
+  if (found == null) { // For the first level of recurssion. 
+    found = [];
+  }
+  if ( // If the tile at the requested position has a non zero value and isn't already included in the found tiles array.
+    game.board[x][y] > 0 &&
+    !game.revealed[x][y] &&
+    !found.includes(x + y * height)
+  ) {
     game.reveal(x, y);
+    found.push(x + y * height); //Add the tile to the found tile array and return it in object form.
     return [{ x: x, y: y, val: game.board[x][y] }];
   }
   let out = [];
@@ -342,10 +362,13 @@ function waterfall(x, y, game) {
             game.revealed[x + i][y + j] == false
           ) {
             game.reveal(x + i, y + j);
-            out = concat(out, waterfall(x + i, y + j, game));
+            out = concat(out, waterfall(x + i, y + j, game, found));
           }
           game.reveal(x + i, y + j);
-          out.push({ x: x + i, y: y + j, val: game.board[x + i][y + j] });
+          if (!found.includes(x + i + (y + j) * height)) {
+            out.push({ x: x + i, y: y + j, val: game.board[x + i][y + j] });
+            found.push(x + i + (y + j) * height);
+          }
         }
       }
     }
@@ -353,16 +376,20 @@ function waterfall(x, y, game) {
   return out;
 }
 
+/* 
+! ----------------------------------- MAIN PROGRAM ----------------------------------- !
+*/
+
 /* Gives the web server access to all files in the client folder so these can be displayed to the user */
 
 app.use(express.static("client"));
 
-/* The below code handles client authentication. When a client first connects to Ably it will request an authentication 
-token from the /auth path which will lead to the below code beign called this will generate a random id using the uniqueId function 
-and return this to the client to be there authentication token.*/
+/* The below code handles client authentication.When a client first connects to Ably it will request an authentication token from the / auth path which will lead to the below code beign called this will generate a random id using the uniqueId function and return this to the client to be there authentication token. */
 
-app.get("/auth", (request, response) => {
-  const tokenParams = { clientId: uniqueId() };
+app.get("/auth ", (request, response) => {
+  const tokenParams = {
+    clientId: uniqueId("id"),
+  };
   realtime.auth.requestToken(tokenParams, function (err, tokenRequest) {
     if (err) {
       response
@@ -375,8 +402,7 @@ app.get("/auth", (request, response) => {
   });
 });
 
-/* Handles all requests to the base webpage. Tells the client which response headers it can communicate with
-and then sends the index.html file to the client. */
+/* Handles all requests to the base webpage. Tells the client which response headers it can communicate with and then sends the index.html file to the client. */
 
 app.get("/", (request, response) => {
   response.header("Access-Control-Allow-Origin", "*");

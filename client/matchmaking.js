@@ -21,9 +21,9 @@ function enterQueue() {
 
 async function connect() {
   await matchmakingChannel.subscribe(matchmakingChannel.connectionManager.connectionDetails.clientId, (message) => {
-    if (message.data[0] == 'i') {
-      localStorage.setItem("playerId", message.data);
-      matchmakingChannel.publish(message.data, document.getElementById("nickname").value);
+    if (message.data == 'Request Nickname') {
+      localStorage.setItem("playerId", matchmakingChannel.connectionManager.connectionDetails.clientId);
+      matchmakingChannel.publish(matchmakingChannel.connectionManager.connectionDetails.clientId, document.getElementById("nickname").value);
     } else {
       localStorage.setItem("currentGame", message.data);
       window.location.replace("/gameroom");
