@@ -1,10 +1,3 @@
-if (localStorage.getItem("playerId") == null) {
-  window.location.replace("/");
-} 
-
-
-console.log(localStorage.getItem("playerId"));
-
 let board = [];
 let revealed = [];
 let flagged = [];
@@ -25,18 +18,23 @@ let currentFixedIndex = 0;
 let revealAmount = 0;
 
 const realtime = new Ably.Realtime({
-  authUrl: "/auth",
-  echoMessages: false,
+  authUrl:"/auth",
+  echoMessages: false
 });
 
+console.log(localStorage.getItem("currentGame"));
+
 const gameChannel = realtime.channels.get(localStorage.getItem("currentGame"));
-gameChannel.presence.enter();
+gameChannel.presence.update({nickname:localStorage.getItem("nickname")});
+
+let clientId;
 
 async function gameCommands() {
   await gameChannel.subscribe("commands", (message) => {
+    clientId = gameChannel.connectionManager.connectionDetails.clientId;
     switch (message.data.identifier) {
       case "playerRoles":
-        if (localStorage.getItem("playerId") == message.data.p1) {
+        if (clientId == message.data.p1) {
           document.getElementById("playerRole").innerText = "Solver";
           document.getElementById("roleDescription").innerText = "Your goal is to solve the board like a regular game of minesweeper, however you must give some information about the board away to the bomber who will try to set off a mine before you can flag them all. Good luck!";
           role = "solver";
@@ -68,7 +66,6 @@ async function gameCommands() {
 
 async function gameUpdates() {
   await gameChannel.subscribe(role, (message) => {
-    getTimes();
     if (role == "solver") {
       if (typeof (message.data) == "object") {
         for (let i = 0; i < message.data.length - 1; i++) {
@@ -111,7 +108,7 @@ document.addEventListener('click', async (event) => {
       y: Math.floor((event.y - box.top) / (box.height / height))
     };
     if (!collecting && event.button == 0) {
-      await gameChannel.publish("input", { position: selected, type: "left", player: localStorage.getItem("playerId") });
+      await gameChannel.publish("input", { position: selected, type: "left", player: clientId });
     } else if (revealed[selected.x][selected.y]) {
       let val = true;
       for (let i = 0; i < currentCollected.length; i++) {
@@ -187,7 +184,7 @@ async function rightClick() {
     x: Math.floor((event.x - box.left) / (box.width/ width)),
     y: Math.floor((event.y - box.top) / (box.height / height))
   };
-  await gameChannel.publish("input", { position: selected, type: "right", player: localStorage.getItem("playerId") });
+  await gameChannel.publish("input", { position: selected, type: "right", player: clientId });
     let found = false;
     for (let i = 0; i < flagged.length; i++) {
       if (flagged[i].x == selected.x && flagged[i].y == selected.y) {
@@ -234,3 +231,5 @@ async function getTimes() {
 }
 
 const formatTime = (x) => Math.floor(x/60).toString() + ":" + (x%60<10? "0" : "") + (x%60).toString();
+
+getTimes();
