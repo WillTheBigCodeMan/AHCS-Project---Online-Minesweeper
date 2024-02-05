@@ -22,27 +22,14 @@
   box-sizing: border-box;
 }
 
-/* --------------- IMPORTS --------------- */
+/* --------------- MAIN --------------- */
 
 html {
   background-color: var(--BACKGROUND-COLOUR);
 }
 
-.gameCanvas{
-  width: 40%;
-  height:auto;
-  margin-top: 1.5rem;
-}
-
 body {
   width:100%;
-  padding: 20px;
-  display: flex;
-  color: #E4D9FF;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  align-items: center;
 }
 
 #logo {
@@ -58,7 +45,6 @@ body {
   text-align: center;
   padding: 20px;
   margin: auto;
-  width: 300px;
 }
 
 #nickname,
@@ -92,8 +78,7 @@ body {
   position: absolute;
   width: 400px;
   height: 60%;
-  top: 20vh;
-  bottom: 10vh;
+  top: 20%;
   left: calc((50vw - 200px));
   background-color: #FAFAFF;
   border-radius: 10px;
@@ -103,6 +88,6 @@ body {
 #backgroundCanv {
   position: absolute;
   z-index: -10;
-  top: 0px;
-  left: 0px;
+  top: 0;
+  left: 0;
 }

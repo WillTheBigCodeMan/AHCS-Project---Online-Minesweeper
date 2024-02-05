@@ -194,144 +194,168 @@ async function createGames() {
     gameChannels.push(realtime.channels.get(gc)); //Store the new messaging channel in an array
     currentGames.push(new Game()); // Create a game object and store it
     queue.splice(0, 2); //Remove the players from the queue
-    gameLoop(); // Start the game loop function
+    gameLoop(currentGames[currentGames.length-1], gameChannels[gameChannels.length - 1]); // Start the game loop function for the game.
   }
 }
 
 /* This function handles the main bulk of the game logic */
 
-async function gameLoop() {
-  for (let i = 0; i < gameChannels.length; i++) {
-    let gC = gameChannels[i];
-    let cG = currentGames[i];
-    //Loop for all currently active games.
+async function gameLoop(cG, gC) {
+  gC.presence.subscribe("enter", async (player) => {
+    //Check for clients connecting to the given game channel
+    cG.connectedPlayers++;
+    //Store the newly assigned player client Ids and the player nicknames which are sent to the server upon the player joining the game channel.
+    cG.playerIds.push(player.clientId);
+    cG.nicknames.push(player.data.nickname);
 
-    gC.presence.subscribe("enter", async (player) => {
-      //Check for clients connecting to the given game channel
-      cG.connectedPlayers++;
-      //Store the newly assigned player client Ids and the player nicknames which are sent to the server upon the player joining the game channel.
-      cG.playerIds.push(player.clientId);
-      cG.nicknames.push(player.data.nickname);
+    await gC.publish(
+      "updates",
+      `<strong>${
+        cG.nicknames[cG.connectedPlayers - 1]
+      }</strong> joined the game`
+    );
 
-      if (cG.connectedPlayers == 2) {
-        //Once both players connected to the game send the details of each player to the clients.
-        cG.generateBlank(); //Set up the game board for the current game.
-        await gC.publish("commands", {
-          p1: cG.playerIds[0],
-          p2: cG.playerIds[1],
-          nickname1: cG.nicknames[0],
-          nickname2: cG.nicknames[1],
-          identifier: "playerRoles",
-        });
-      } else if (cG.connectedPlayers > 2) {
-        /* 
+    if (cG.connectedPlayers == 2) {
+      //Once both players connected to the game send the details of each player to the clients.
+      cG.generateBlank(); //Set up the game board for the current game.
+      await gC.publish("commands", {
+        p1: cG.playerIds[0],
+        p2: cG.playerIds[1],
+        nickname1: cG.nicknames[0],
+        nickname2: cG.nicknames[1],
+        identifier: "playerRoles",
+      });
+    } else if (cG.connectedPlayers > 2) {
+      /* 
         TODO Code for reconnecting players.
         */
+    }
+  });
+
+  //Code to handle player input
+
+  gC.subscribe("input", async (message) => {
+    //Code to check for the first solver input and generate positions of the mines
+
+    if (cG.turn == 0 && message.clientId == cG.playerIds[0]) {
+      cG.genBoard(message.data.position.x, message.data.position.y);
+    }
+
+    //Code for all other solver turns
+
+    if (
+      //Check that the player is the solver and that its a left click input
+      cG.turn % 2 == 0 &&
+      message.clientId == cG.playerIds[0] &&
+      message.data.type == "left"
+    ) {
+      if (cG.board[message.data.position.x][message.data.position.y] == -1) {
+        //If the solver clicks a mine
+        await gC.publish("commands", {
+          //Publish a bomber win
+          winner: "bomber",
+          identifier: "winLoss",
+        });
       }
-    });
 
-    //Code to handle player input
+      if (!cG.revealed[message.data.position.x][message.data.position.y]) {
+        //If the grid position is not already revealed
+        let fullRevealed = waterfall(
+          message.data.position.x,
+          message.data.position.y,
+          cG,
+          null
+        ); // Call the waterfall function to get the cells which are now revealed to the solver.
 
-    gC.subscribe("input", async (message) => {
-      //Code to check for the first solver input and generate positions of the mines
+        fullRevealed.push({x:message.data.position.x, y:message.data.position.y, val:cG.board[message.data.position.x][message.data.position.y]});
 
-      if (cG.turn == 0 && message.clientId == cG.playerIds[0]) {
-        cG.genBoard(message.data.position.x, message.data.position.y);
-      }
-
-      //Code for all other solver turns
-
-      if (
-        //Check that the player is the solver and that its a left click input
-        cG.turn % 2 == 0 &&
-        message.clientId == cG.playerIds[0] &&
-        message.data.type == "left"
-      ) {
-        if (cG.board[message.data.position.x][message.data.position.y] == -1) {
-          //If the solver clicks a mine
+        let totVal = 0;
+        fullRevealed.forEach((x) => (totVal += x.val)); // Calculate the value of the total revealed cells
+        totVal -= fullRevealed[fullRevealed.length-1].val;
+        fullRevealed.push(totVal);
+        gC.revealedTiles += fullRevealed.length; //Increments the amount of solver revealed tiles, and if this number is equal to the total amount of non-mine tiles publish a solver win.
+        if (gC.revealedTiles == width * height - mines) {
           await gC.publish("commands", {
-            //Publish a bomber win
-            winner: "bomber",
+            //Publish a solver win
+            winner: "solver",
             identifier: "winLoss",
           });
         }
+        await gC.publish("solver", fullRevealed); //Publish the revealed information to the solver
+        await gC.publish(
+          "updates",
+          `<strong>${
+            cG.nicknames[0]
+          }</strong> has revealed tiles with a combined value of <strong>${
+            fullRevealed[fullRevealed.length - 1]
+          }</strong>. ${
+            fullRevealed[fullRevealed.length - 1] >= 5
+              ? `They must now reveal <strong>${Math.floor(
+                  fullRevealed[fullRevealed.length - 1] / 5
+                )}</strong> tiles to <strong>${cG.nicknames[1]}</strong>.`
+              : "Since they have revealed tiles with a combined value less than 5, it remains their turn."
+          }`
+        );
+      }
+    }
 
-        if (!cG.revealed[message.data.position.x][message.data.position.y]) { //If the grid position is not already revealed
-          let fullRevealed = waterfall(
-            message.data.position.x,
-            message.data.position.y,
-            cG,
-            null
-          ); // Call the waterfall function to get the cells which are now revealed to the solver.
+    //Code to handle the bombers turn.
 
-          fullRevealed.push({
+    if (
+      //Check that conditions are met for the bombers turn
+      cG.turn % 2 == 1 &&
+      message.data.player == cG.playerIds[1] &&
+      message.data.type == "left"
+    ) {
+      if (cG.board[message.data.position.x][message.data.position.y] == -1) {
+        //If the bomber finds a mine
+        await gC.publish("commands", {
+          //Publish that the bomber has won
+          winner: "bomber",
+          identifier: "winLoss",
+        });
+      } else {
+        //Publish the value of the tile at the bombers input position
+        let revealed = [
+          {
             x: message.data.position.x,
             y: message.data.position.y,
-            val: cG.board[message.data.position.x][message.data.position.y],
-          }); // Add the cell at the players input to the revealed tiles
-
-          let totVal = 0;
-          fullRevealed.forEach((x) => (totVal += x.val)); // Calculate the value of the total revealed cells
-          fullRevealed.push(totVal);
-          gC.revealedTiles += fullRevealed.length; //Increments the amount of solver revealed tiles, and if this number is equal to the total amount of non-mine tiles publish a solver win.
-          if (gC.revealedTiles == width * height - mines) {
-            await gC.publish("commands", {
-              //Publish a solver win
-              winner: "solver",
-              identifier: "winLoss",
-            });
-          }
-          await gC.publish("solver", fullRevealed); //Publish the revealed information to the solver
-        }
+            value: cG.board[message.data.position.x][message.data.position.y],
+          },
+        ];
+        await gC.publish("bomber", revealed);
       }
-      //Code to handle the solvers selection of revealed cells.
 
-      gC.subscribe("solverSelection", async (message) => {
-        let revealed = [];
-        message.data.forEach((c) => {
-          //Format the chosen cells and check the values of them
-          revealed.push({
-            x: c.pos.x,
-            y: c.pos.y,
-            value: cG.board[c.pos.x][c.pos.y],
-          });
+      await gC.publish("updates", `<strong>${cG.nicknames[1]}</strong> did not discover a mine. It is now <strong>${cG.nicknames[0]}'s</strong> turn.`)
+
+      cG.incrementTurn(); //Moves back to the solvers turn
+    }
+  });
+
+  //Code to handle the solvers selection of revealed cells.
+
+  gC.subscribe("solverSelection", async (message) => {
+    if (cG.turn % 2 == 0) {
+      let revealed = [];
+      message.data.forEach((c) => {
+        //Format the chosen cells and check the values of them
+        revealed.push({
+          x: c.pos.x,
+          y: c.pos.y,
+          value: cG.board[c.pos.x][c.pos.y],
         });
-
-        await gC.publish("bomber", revealed); //Publish the revealed cells to the bomber.
-        cG.incrementTurn(); //Increase the turn
       });
 
-      //Code to handle the bombers turn.
+      console.log(cG.turn);
 
-      if (
-        //Check that conditions are met for the bombers turn
-        cG.turn % 2 == 1 &&
-        message.data.player == cG.playerIds[1] &&
-        message.data.type == "left"
-      ) {
-        if (cG.board[message.data.position.x][message.data.position.y] == -1) {
-          //If the bomber finds a mine
-          await gC.publish("commands", {
-            //Publish that the bomber has won
-            winner: "bomber",
-            identifier: "winLoss",
-          });
-        } else {
-          //Publish the value of the tile at the bombers input position
-          let revealed = [
-            {
-              x: message.data.position.x,
-              y: message.data.position.y,
-              value: cG.board[message.data.position.x][message.data.position.y],
-            },
-          ];
-          await gC.publish("bomber", revealed);
-        }
-
-        cG.incrementTurn(); //Moves back to the solvers turn
-      }
-    });
-  }
+      await gC.publish("bomber", revealed); //Publish the revealed cells to the bomber.
+      cG.incrementTurn(); //Increase the turn
+      await gC.publish(
+        "updates",
+        `<strong>${cG.nicknames[0]}'s</strong> turn is now over. It is now <strong>${cG.nicknames[1]}'s</strong> turn.`
+      );
+    }
+  });
 }
 
 /* This function is a recursive process to find all the revealed cells connected to a given cell */

@@ -60,7 +60,7 @@ setInterval(function() {
         let m = (circles[j].y - circles[i].y) / (circles[j].x-circles[i].x);
         let theta = Math.atan(m);
         let v = {y:Math.sin(theta), x:Math.cos(theta)};
-        //console.log(m, theta, v);
+
         if(circles[i].x > circles[j].x){
           circles[i].x = circles[j].x + Math.abs(v.x * (circles[i].width + circles[j].width));
         } else {
@@ -71,6 +71,7 @@ setInterval(function() {
         } else {
           circles[i].y = circles[j].y - Math.abs(v.y * (circles[i].width + circles[j].width));
         }
+        
         let totalMomX = circles[i].vel.x * mass(circles[i]) + circles[j].vel.x * mass(circles[j]);
         let totalMomY = circles[i].vel.y * mass(circles[i]) + circles[j].vel.y * mass(circles[j]);
         

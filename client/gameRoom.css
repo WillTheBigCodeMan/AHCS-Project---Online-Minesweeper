@@ -77,7 +77,19 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   min-height: 100%;
+  max-height: 70vh;
   font-family: var(--MINESWEEPER-FONT-FAMILY);
+  width:350px;
+  overflow-y:scroll;
+}
+
+.sidebar::-webkit-scrollbar{
+  background:none;
+}
+
+.sidebar::-webkit-scrollbar-thumb{
+  background-color: #EEEEFF;
+  border-radius: 10px;
 }
 
 .timer {
@@ -91,7 +103,7 @@ body {
 }
 
 .playerStats {
-  min-width: 300px;
+  width:100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -121,4 +133,12 @@ body {
 
 .gameplayButtons button:active {
   background-color: white;
+}
+
+.gameUpdate {
+  font-family: var(--ROBOTO-FONT-FAMILY);
+}
+
+#updateSidebar{
+  justify-content: flex-start;
 }

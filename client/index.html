@@ -20,13 +20,16 @@
         Welcome to Minesweeper online, a multiplayer version of minesweeper.
         Enter a nickname into the box below to get started.
       </p>
-      <input
-        type="text"
-        id="nickname"
-        placeholder="Nickname"
-        style="font-size: 24"
-      />
-      <button id="joinGame" onclick="enterQueue()">Join Game!</button>
+      <form id="nicknameForm" onsubmit="enterQueue()">
+        <input
+          type="text"
+          id="nickname"
+          placeholder="Nickname"
+          maxlength="30"
+          autocomplete="off"
+        />
+        <input type="submit" id="joinGame" value="Join Game!">
+      </form>
     </div>
   </body>
   <script src="matchmaking.js"></script>
