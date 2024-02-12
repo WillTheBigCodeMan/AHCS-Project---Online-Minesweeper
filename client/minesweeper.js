@@ -1,3 +1,6 @@
+if (localStorage.getItem("currentGame") == null) {
+  window.location.replace("/");
+}
 //Client side game variables
 
 let board = [];
@@ -10,6 +13,8 @@ const height = 15;
 
 const ctx = document.getElementById("game").getContext("2d");
 const cvs = document.getElementById("game");
+
+let ps = [];
 
 //Other variables.
 
@@ -37,6 +42,18 @@ gameChannel.presence.update({ nickname: localStorage.getItem("nickname") });
 //Creates a variable to store the client ID
 
 let clientId;
+
+let particleLoop;
+
+const fullRender = () => {
+  for (let i = 0; i < ps.length; i++) {
+    renderSystem(ps[i]);
+    if (ps[i].a <= 0) {
+      ps.splice(i, 1);
+    }
+    i--;
+  }
+};
 
 //Function to listen for and process game commands sent from the server.
 
@@ -102,10 +119,26 @@ async function gameUpdates() {
           //Loop through the tiles and store their information in the relevant game variables.
           revealed[message.data[i].x][message.data[i].y] = true;
           board[message.data[i].x][message.data[i].y] = message.data[i].val;
+          if (message.data[i].val > 0) {
+            ps.push(
+              new ParticleSystem(
+                (message.data[i].x + 0.5) * (800 / width),
+                (message.data[i].y + 0.5) * (800 / height),
+                2,
+                10,
+                ["#EFDDCC"],
+                true,
+                200,
+                10,
+                25
+              )
+            );
+          }
         }
+        clearInterval(particleLoop);
+        particleLoop = setInterval(fullRender, 50);
         renderGrid(); //Render the new information#
 
-        // TODO Update this section
         let tot = message.data[message.data.length - 1];
         if (tot >= 5) {
           revealAmount += Math.floor(tot / 5);
@@ -187,7 +220,7 @@ document.addEventListener("click", async (event) => {
         if (currentCollected.length > revealAmount) {
           currentCollected.splice(currentFixedIndex, 1);
         }
-        if(currentCollected.length >= revealAmount){
+        if (currentCollected.length >= revealAmount) {
           document.getElementById("confirmButton").style.backgroundColor =
             "aliceblue";
         }
@@ -223,11 +256,31 @@ function renderGrid() {
         800 / height
       );
       ctx.fillStyle = "#AAA";
-      ctx.fillRect(i * (800/width) + 2, (j+1) * (800/height) + 4 - (800/height/6), (800/width) - 4, (800/height/6) - 4);
-      ctx.fillRect((i+1) * (800/width) + 2 - (800/width/6), j * (800/height) + 2, (800/width/6) - 4, (800/height) - 4);
+      ctx.fillRect(
+        i * (800 / width) + 2,
+        (j + 1) * (800 / height) + 4 - 800 / height / 6,
+        800 / width - 4,
+        800 / height / 6 - 4
+      );
+      ctx.fillRect(
+        (i + 1) * (800 / width) + 2 - 800 / width / 6,
+        j * (800 / height) + 2,
+        800 / width / 6 - 4,
+        800 / height - 4
+      );
       ctx.fillStyle = "#FFF";
-      ctx.fillRect(i * (800/width) + 2, j * (800/height) + 2, (800/width/6) - 4, (800/height) - 4);
-      ctx.fillRect(i * (800/width) + 2, j * (800/height) + 2, (800/width) - 4, (800/height/6) - 4);
+      ctx.fillRect(
+        i * (800 / width) + 2,
+        j * (800 / height) + 2,
+        800 / width / 6 - 4,
+        800 / height - 4
+      );
+      ctx.fillRect(
+        i * (800 / width) + 2,
+        j * (800 / height) + 2,
+        800 / width - 4,
+        800 / height / 6 - 4
+      );
       let isCollectedSquare = false;
       for (let k = 0; k < currentCollected.length; k++) {
         if (i == currentCollected[k].pos.x && j == currentCollected[k].pos.y) {
@@ -236,7 +289,7 @@ function renderGrid() {
         }
       }
       if (revealed[i][j] && board[i][j] > 0) {
-        rect(i, j, isCollectedSquare? "#AFA":"#FFF", "#000000");
+        rect(i, j, isCollectedSquare ? "#AFA" : "#FFF", "#000000");
         ctx.fillStyle = "#000000";
         ctx.font = "30px Arial";
         ctx.fillText(
@@ -282,7 +335,7 @@ async function rightClick() {
       break;
     }
   }
-  if (!found&&!revealed[selected.x][selected.y]) {
+  if (!found && !revealed[selected.x][selected.y]) {
     //If the current selected tile was not already flagged, add it to the flagged array and render it.
     rect(selected.x, selected.y, "#FF0000", "#000000");
     flagged.push({
@@ -303,7 +356,12 @@ window.addEventListener("contextmenu", (event) => {
 
 async function confirmSelected() {
   console.log("aa");
-  if (currentCollected.length >= revealAmount&&document.getElementById("confirmButton").style.backgroundColor=="aliceblue"&&collecting) {
+  if (
+    currentCollected.length >= revealAmount &&
+    document.getElementById("confirmButton").style.backgroundColor ==
+      "aliceblue" &&
+    collecting
+  ) {
     //Check the solver has selected enough tiles
     document.getElementById("confirmButton").style.backgroundColor =
       "lightgray";
@@ -362,3 +420,58 @@ getUpdates();
 
 ctx.fillStyle = "#BBB";
 ctx.fillRect(0, 0, 800, 800);
+
+class ParticleSystem {
+  constructor(
+    x,
+    y,
+    velocity,
+    count,
+    colours,
+    gravity,
+    lifetime,
+    minWidth,
+    maxWidth
+  ) {
+    this.x = x;
+    this.y = y;
+    this.vel = velocity;
+    this.num = count;
+    this.cols = colours;
+    this.grav = gravity;
+    this.lifetime = lifetime;
+    this.a = 1;
+    this.particles = new Array(count);
+    for (let i = 0; i < this.particles.length; i++) {
+      let theta = Math.random() * 2 * Math.PI;
+      this.particles[i] = {
+        x: x,
+        y: y,
+        velX: velocity * Math.sin(theta),
+        velY: 1,
+        colour: colours[Math.floor(Math.random() * colours.length)],
+        w: Math.random() * (maxWidth - minWidth) + minWidth,
+      };
+    }
+    this.loop;
+  }
+}
+
+function renderSystem(s) {
+  s.a -= 1 / (s.lifetime / 50);
+  for (let i = 0; i < s.num; i++) {
+    let p = s.particles[i];
+    p.velY += s.grav ? 0.1 : 0;
+    p.x += p.velX;
+    p.y += p.velY;
+    ctx.fillStyle = rgbaFromHex(p.colour, s.a);
+    console.log(rgbaFromHex(p.colour, s.a));
+    ctx.fillRect(p.x, p.y, p.w, p.w);
+  }
+}
+
+const rgbaFromHex = (h, a) =>
+  `rgba(${parseInt(h[1] + h[2], 16)}, ${parseInt(h[3] + h[4], 16)}, ${parseInt(
+    h[5] + h[6],
+    16
+  )}, ${a})`;
