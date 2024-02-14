@@ -96,6 +96,7 @@ async function gameCommands() {
       //Code for handling when a player has won or lost.
 
       case "winLoss":
+        console.log(message.data.winner);
         if (message.data.winner == "bomber") {
           // TODO
         } else {

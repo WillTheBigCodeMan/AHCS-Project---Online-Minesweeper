@@ -18,7 +18,7 @@ let gameChannels = [];
 let queue = [];
 const width = 15;
 const height = 15;
-const mines = 40;
+const mines = 10;
 
 /* Reference to the api key used to allow use of the Ably realtime messaging library */
 
@@ -274,6 +274,7 @@ async function gameLoop(cG, gC) {
         totVal -= fullRevealed[fullRevealed.length-1].val;
         fullRevealed.push(totVal);
         gC.revealedTiles += fullRevealed.length; //Increments the amount of solver revealed tiles, and if this number is equal to the total amount of non-mine tiles publish a solver win.
+        console.log(gC.revealedTiles);
         if (gC.revealedTiles == width * height - mines) {
           await gC.publish("commands", {
             //Publish a solver win
