@@ -101,7 +101,7 @@ async function gameCommands() {
         } else {
           // TODO
         }
-        window.location.replace("/");
+       // window.location.replace("/");
         break;
     }
   });
