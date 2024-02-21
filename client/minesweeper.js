@@ -14,8 +14,6 @@ const height = 15;
 const ctx = document.getElementById("game").getContext("2d");
 const cvs = document.getElementById("game");
 
-let ps = [];
-
 //Other variables.
 
 let box = cvs.getBoundingClientRect();
@@ -42,18 +40,6 @@ gameChannel.presence.update({ nickname: localStorage.getItem("nickname") });
 //Creates a variable to store the client ID
 
 let clientId;
-
-let particleLoop;
-
-const fullRender = () => {
-  for (let i = 0; i < ps.length; i++) {
-    renderSystem(ps[i]);
-    if (ps[i].a <= 0) {
-      ps.splice(i, 1);
-    }
-    i--;
-  }
-};
 
 //Function to listen for and process game commands sent from the server.
 
@@ -96,13 +82,18 @@ async function gameCommands() {
       //Code for handling when a player has won or lost.
 
       case "winLoss":
-        console.log(message.data.winner);
-        if (message.data.winner == "bomber") {
-          // TODO
+        document.getElementById("winLossPopup").style.display = "block";
+        let messageH = document.getElementById("winLossMessage");
+        let descriptionP = document.getElementById("winLossDescription");
+        if (message.data.winner == role) {
+          messageH.innerText = "Victory";
+          messageH.style.color = "mediumseagreen";
         } else {
-          // TODO
+          messageH.innerText = "Game Over";
+          messageH.style.color = "crimson";
         }
-       // window.location.replace("/");
+        descriptionP.innerText = message.data.winType;
+        endingAnimation(message.data.board);
         break;
     }
   });
@@ -120,25 +111,9 @@ async function gameUpdates() {
           //Loop through the tiles and store their information in the relevant game variables.
           revealed[message.data[i].x][message.data[i].y] = true;
           board[message.data[i].x][message.data[i].y] = message.data[i].val;
-          if (message.data[i].val > 0) {
-            ps.push(
-              new ParticleSystem(
-                (message.data[i].x + 0.5) * (800 / width),
-                (message.data[i].y + 0.5) * (800 / height),
-                2,
-                10,
-                ["#EFDDCC"],
-                true,
-                200,
-                10,
-                25
-              )
-            );
-          }
         }
-        clearInterval(particleLoop);
-        particleLoop = setInterval(fullRender, 50);
-        renderGrid(); //Render the new information#
+
+        renderGrid(); //Render the new information
 
         let tot = message.data[message.data.length - 1];
         if (tot >= 5) {
@@ -422,57 +397,85 @@ getUpdates();
 ctx.fillStyle = "#BBB";
 ctx.fillRect(0, 0, 800, 800);
 
-class ParticleSystem {
-  constructor(
-    x,
-    y,
-    velocity,
-    count,
-    colours,
-    gravity,
-    lifetime,
-    minWidth,
-    maxWidth
-  ) {
-    this.x = x;
-    this.y = y;
-    this.vel = velocity;
-    this.num = count;
-    this.cols = colours;
-    this.grav = gravity;
-    this.lifetime = lifetime;
-    this.a = 1;
-    this.particles = new Array(count);
-    for (let i = 0; i < this.particles.length; i++) {
-      let theta = Math.random() * 2 * Math.PI;
-      this.particles[i] = {
-        x: x,
-        y: y,
-        velX: velocity * Math.sin(theta),
-        velY: 1,
-        colour: colours[Math.floor(Math.random() * colours.length)],
-        w: Math.random() * (maxWidth - minWidth) + minWidth,
-      };
+function endingAnimation(fullBoard) {
+  console.log(fullBoard);
+  let pos = 0;
+  let revealLoop = setInterval(() => {
+    renderCell(fullBoard[pos % 15][Math.floor(pos / 15)], pos);
+    pos++;
+    if (pos >= width * height) {
+      clearInterval(revealLoop);
+      sortAndAnimate(fullBoard);
     }
-    this.loop;
+  }, 10);
+}
+
+function sortAndAnimate(fullBoard) {
+  let unsortedBoard = [];
+  for (let i = 0; i < fullBoard.length; i++) {
+    for (let j = 0; j < fullBoard[i].length; j++) {
+      unsortedBoard.push(fullBoard[i][j]);
+    }
+  }
+
+  let temp, swapped;
+
+  for (let i = 0; i < unsortedBoard.length - 1; i++) {
+    swapped = false;
+
+    for (let j = 0; j < unsortedBoard.length - i - 1; j++) {
+      if (unsortedBoard[j] > unsortedBoard[j + 1]) {
+        temp = unsortedBoard[j];
+        unsortedBoard[j] = unsortedBoard[j + 1];
+        unsortedBoard[j + 1] = temp;
+        swapped = true;
+      }
+    }
+
+    if (swapped == false) break;
+  }
+
+  pos = 0;
+
+  let sortLoop = setInterval(() => {
+    renderCell(unsortedBoard[pos], pos);
+    pos++;
+    if (pos >= width * height) {
+      clearInterval(sortLoop);
+    }
+  }, 10);
+}
+
+function renderCell(val, position) {
+  let x = position % 15;
+  let y = Math.floor(position / 15);
+  if (val == 0) {
+    rect(x, y, "#ffeeee", "#000000");
+  } else if (val > 0) {
+    rect(x, y, "#FFF", "#000000");
+    ctx.fillStyle = "#000000";
+    ctx.font = "30px Arial";
+    ctx.fillText(
+      val.toString(),
+      x * (800 / width) + 16,
+      y * (800 / height) + 40
+    );
+  } else {
+    rect(x, y, "#555", "#000");
+    ctx.fillStyle = "crimson";
+    ctx.beginPath();
+    ctx.arc(
+      (x + 0.5) * (800 / width),
+      (y + 0.5) * (800 / height),
+      10,
+      0,
+      2 * Math.PI
+    );
+    ctx.fill();
   }
 }
 
-function renderSystem(s) {
-  s.a -= 1 / (s.lifetime / 50);
-  for (let i = 0; i < s.num; i++) {
-    let p = s.particles[i];
-    p.velY += s.grav ? 0.1 : 0;
-    p.x += p.velX;
-    p.y += p.velY;
-    ctx.fillStyle = rgbaFromHex(p.colour, s.a);
-    console.log(rgbaFromHex(p.colour, s.a));
-    ctx.fillRect(p.x, p.y, p.w, p.w);
-  }
+function resign() {
+  gameChannel.publish("resignation", {player:clientId});
+  window.location.replace("/");
 }
-
-const rgbaFromHex = (h, a) =>
-  `rgba(${parseInt(h[1] + h[2], 16)}, ${parseInt(h[3] + h[4], 16)}, ${parseInt(
-    h[5] + h[6],
-    16
-  )}, ${a})`;

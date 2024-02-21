@@ -194,7 +194,10 @@ async function createGames() {
     gameChannels.push(realtime.channels.get(gc)); //Store the new messaging channel in an array
     currentGames.push(new Game()); // Create a game object and store it
     queue.splice(0, 2); //Remove the players from the queue
-    gameLoop(currentGames[currentGames.length-1], gameChannels[gameChannels.length - 1]); // Start the game loop function for the game.
+    gameLoop(
+      currentGames[currentGames.length - 1],
+      gameChannels[gameChannels.length - 1]
+    ); // Start the game loop function for the game.
   }
 }
 
@@ -225,11 +228,20 @@ async function gameLoop(cG, gC) {
         nickname2: cG.nicknames[1],
         identifier: "playerRoles",
       });
-    } else if (cG.connectedPlayers > 2) {
-      /* 
-        TODO Code for reconnecting players.
-        */
     }
+  });
+
+  gC.subscribe("resignation", async (message) => {
+    if(cG.board[0][0] == -2) {
+      cG.genBoard(0,0);
+    }
+    await gC.publish("commands", {
+      //Publish a bomber win
+      winner: message.data.player == cG.playerIds[0] ? "bomber" : "solver",
+      identifier: "winLoss",
+      winType:"Your oponent resigned",
+      board:cG.board
+    });
   });
 
   //Code to handle player input
@@ -255,6 +267,8 @@ async function gameLoop(cG, gC) {
           //Publish a bomber win
           winner: "bomber",
           identifier: "winLoss",
+          winType:"The solver detonated a mine by mistake",
+          board:cG.board
         });
       }
 
@@ -267,19 +281,26 @@ async function gameLoop(cG, gC) {
           null
         ); // Call the waterfall function to get the cells which are now revealed to the solver.
 
-        fullRevealed.push({x:message.data.position.x, y:message.data.position.y, val:cG.board[message.data.position.x][message.data.position.y]});
+        fullRevealed.push({
+          x: message.data.position.x,
+          y: message.data.position.y,
+          val: cG.board[message.data.position.x][message.data.position.y],
+        });
 
         let totVal = 0;
         fullRevealed.forEach((x) => (totVal += x.val)); // Calculate the value of the total revealed cells
-        totVal -= fullRevealed[fullRevealed.length-1].val;
+        totVal -= fullRevealed[fullRevealed.length - 1].val;
         fullRevealed.push(totVal);
-        gC.revealedTiles += fullRevealed.length; //Increments the amount of solver revealed tiles, and if this number is equal to the total amount of non-mine tiles publish a solver win.
-        console.log(gC.revealedTiles);
-        if (gC.revealedTiles == width * height - mines) {
+        fullRevealed.sort((a, b) => a.x + a.y * height - (b.x + b.y * height));
+        cG.revealedTiles += fullRevealed.length - 2; //Increments the amount of solver revealed tiles, and if this number is equal to the total amount of non-mine tiles publish a solver win.
+        console.log(cG.revealedTiles, fullRevealed);
+        if (cG.revealedTiles == width * height - mines) {
           await gC.publish("commands", {
             //Publish a solver win
             winner: "solver",
             identifier: "winLoss",
+            winType: "The solver revealed all non mine tiles",
+            board:cG.board
           });
         }
         await gC.publish("solver", fullRevealed); //Publish the revealed information to the solver
@@ -314,6 +335,8 @@ async function gameLoop(cG, gC) {
           //Publish that the bomber has won
           winner: "bomber",
           identifier: "winLoss",
+          winType:"The bomber found a mine",
+          board:cG.board
         });
       } else {
         //Publish the value of the tile at the bombers input position
@@ -327,7 +350,10 @@ async function gameLoop(cG, gC) {
         await gC.publish("bomber", revealed);
       }
 
-      await gC.publish("updates", `<strong>${cG.nicknames[1]}</strong> did not discover a mine. It is now <strong>${cG.nicknames[0]}'s</strong> turn.`)
+      await gC.publish(
+        "updates",
+        `<strong>${cG.nicknames[1]}</strong> did not discover a mine. It is now <strong>${cG.nicknames[0]}'s</strong> turn.`
+      );
 
       cG.incrementTurn(); //Moves back to the solvers turn
     }
@@ -347,8 +373,6 @@ async function gameLoop(cG, gC) {
         });
       });
 
-      console.log(cG.turn);
-
       await gC.publish("bomber", revealed); //Publish the revealed cells to the bomber.
       cG.incrementTurn(); //Increase the turn
       await gC.publish(
@@ -361,51 +385,33 @@ async function gameLoop(cG, gC) {
 
 /* This function is a recursive process to find all the revealed cells connected to a given cell */
 
-function waterfall(x, y, game, found) {
-  if (found == null) {
-    // For the first level of recurssion.
-    found = [];
-  }
+function waterfall(x, y, game) {
+  game.reveal(x, y);
+
   if (
     // If the tile at the requested position has a non zero value and isn't already included in the found tiles array.
-    game.board[x][y] > 0 &&
-    !game.revealed[x][y] &&
-    !found.includes(x + y * height)
+    game.board[x][y] > 0
   ) {
-    game.reveal(x, y);
-    found.push(x + y * height); //Add the tile to the found tile array and return it in object form.
     return [{ x: x, y: y, val: game.board[x][y] }];
   }
-  let out = [];
+  let out = [{ x: x, y: y, val: 0 }];
   for (let i = -1; i <= 1; i++) {
     //Loop through all the surrounding tiles
     for (let j = -1; j <= 1; j++) {
       if (
-        //Check that the currently viewed tile is in the grid and not the central tile
-        !(i == 0 && j == 0) &&
+        //Check that the currently viewed tile is in the grid
         x + i >= 0 &&
         y + j >= 0 &&
         x + i < width &&
-        y + j < height
+        y + j < height &&
+        game.board[x + i][y + j] >= 0 &&
+        !game.revealed[x+i][y+j]
       ) {
-        if (game.board[x + i][y + j] >= 0) {
-          //If the tile isn't a mine reveal it, and if the tile has a value of 0 call the funtion on that tile
-          if (
-            game.board[x + i][y + j] == 0 &&
-            game.revealed[x + i][y + j] == false
-          ) {
-            game.reveal(x + i, y + j);
-            out = concat(out, waterfall(x + i, y + j, game, found));
-          }
-          game.reveal(x + i, y + j);
-          if (!found.includes(x + i + (y + j) * height)) {
-            out.push({ x: x + i, y: y + j, val: game.board[x + i][y + j] });
-            found.push(x + i + (y + j) * height);
-          }
-        }
+        out = concat(out, waterfall(x + i, y + j, game));
       }
     }
   }
+
   return out;
 }
 

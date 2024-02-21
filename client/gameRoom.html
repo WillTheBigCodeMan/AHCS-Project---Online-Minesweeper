@@ -21,31 +21,39 @@
     ></canvas>
     <div class="role">
       <h1 id="playerRole">ROLE</h1>
-      <h2 id="roleDescription">
-      </h2>
+      <h2 id="roleDescription"></h2>
     </div>
     <div class="game">
-      <div class="sidebar" id="updateSidebar">
-      </div>
+      <div class="sidebar" id="updateSidebar"></div>
       <canvas
         class="gameCanvas"
         id="game"
         width="800"
         height="800"
         oncontextmenu="rightClick()"
-      ></canvas>
+      >
+      </canvas>
+      <div class="winLossPopup" id = "winLossPopup">
+        <h2 class="winLossMessage" id="winLossMessage">Game Over</h2>
+        <p class="winLossDescription" id="winLossDescription">The bomber found a mine</p>
+        <button onclick="window.location.replace('/')">Play Again</button>
+      </div>
       <div class="sidebar">
-        <div class = "playerStats">
-          <label for="opponentTimer" id = "opponentName">Username</label>
+        <div class="playerStats">
+          <label for="opponentTimer" id="opponentName">Username</label>
           <p id="opponentTimer" class="timer">0:00</p>
         </div>
         <div class="gameplayButtons">
-          <button onclick="confirmSelected()" id="confirmButton" style="background-color: lightgray;">
+          <button
+            onclick="confirmSelected()"
+            id="confirmButton"
+            style="background-color: lightgray"
+          >
             Confirm Selection
           </button>
-          <button>Resign</button>
+          <button onclick="resign()">Resign</button>
         </div>
-        <div class = "playerStats">
+        <div class="playerStats">
           <label for="playerTimer" id="playerUsername">Username</label>
           <p id="playerTimer" class="timer">0:00</p>
         </div>

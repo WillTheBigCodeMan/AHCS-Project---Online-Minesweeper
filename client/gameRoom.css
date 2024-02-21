@@ -16,7 +16,7 @@
   --FONT-COLOR-PINK: #e4d9ff;
   --MINESWEEPER-FONT-FAMILY: "MINE-SWEEPER", "Times New Roman", Times, serif;
   --ROBOTO-FONT-FAMILY: "Roboto", sans-serif;
-  --BORDER-GRAY:3px solid #444;
+  --BORDER-GRAY: 3px solid #444;
 }
 
 /* --------------- RESET --------------- */
@@ -34,7 +34,7 @@ html {
 }
 
 body {
-  color:#222;
+  color: #222;
 }
 
 .role {
@@ -66,12 +66,13 @@ body {
   gap: 0.5rem;
   width: 100%;
   height: 70%;
+  position: relative;
 }
 
 .sidebar {
   background-color: rgba(255, 255, 255, 0.5);
   border-radius: 1rem;
-  padding:1rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -79,16 +80,16 @@ body {
   min-height: 100%;
   max-height: 70vh;
   font-family: var(--MINESWEEPER-FONT-FAMILY);
-  width:350px;
-  overflow-y:scroll;
+  width: 350px;
+  overflow-y: scroll;
 }
 
-.sidebar::-webkit-scrollbar{
-  background:none;
+.sidebar::-webkit-scrollbar {
+  background: none;
 }
 
-.sidebar::-webkit-scrollbar-thumb{
-  background-color: #EEEEFF;
+.sidebar::-webkit-scrollbar-thumb {
+  background-color: #eeeeff;
   border-radius: 10px;
 }
 
@@ -99,26 +100,26 @@ body {
   text-align: center;
   display: inline;
   padding: 0.3rem;
-  color:whitesmoke;
+  color: whitesmoke;
 }
 
 .playerStats {
-  width:100%;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.gameplayButtons{
+.gameplayButtons {
   display: flex;
   width: 100%;
   flex-direction: column;
   align-items: center;
-  gap:0.5rem;
+  gap: 0.5rem;
 }
 
 .gameplayButtons button {
-  color:#222;
+  color: #222;
   width: 140px;
   height: 140px;
   border: var(--BORDER-GRAY);
@@ -139,6 +140,30 @@ body {
   font-family: var(--ROBOTO-FONT-FAMILY);
 }
 
-#updateSidebar{
+#updateSidebar {
   justify-content: flex-start;
+}
+
+.winLossPopup {
+  position: absolute;
+  top: calc(50% - 90px);
+  height: 180px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  border: var(--BORDER-GRAY);
+  padding: 10px;
+  font-family: var(--MINESWEEPER-FONT-FAMILY);
+  text-align: center;
+  width: 300px;
+  display: none;
+}
+
+.winLossDescription {
+  padding-top: 1rem;
+}
+
+.winLossPopup button {
+  font-family: inherit;
+  padding: 5px;
+  margin-top: 1rem;
 }
