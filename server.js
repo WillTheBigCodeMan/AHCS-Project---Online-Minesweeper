@@ -18,7 +18,7 @@ let gameChannels = [];
 let queue = [];
 const width = 15;
 const height = 15;
-const mines = 10;
+const mines = 40;
 
 /* Reference to the api key used to allow use of the Ably realtime messaging library */
 
