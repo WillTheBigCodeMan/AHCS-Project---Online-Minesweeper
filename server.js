@@ -18,7 +18,7 @@ let gameChannels = [];
 let queue = [];
 const width = 15;
 const height = 15;
-const mines = 40;
+const mines = 20;
 
 /* Reference to the api key used to allow use of the Ably realtime messaging library */
 
@@ -423,7 +423,10 @@ function waterfall(x, y, game) {
 
 app.use(express.static("client"));
 
-/* The below code handles client authentication.When a client first connects to Ably it will request an authentication token from the / auth path which will lead to the below code beign called this will generate a random id using the uniqueId function and return this to the client to be there authentication token. */
+/* The below code handles client authentication.When a client first connects to Ably it will 
+request an authentication token from the / auth path which will lead to the below code beign
+ called this will generate a random id using the uniqueId function and return this to the client 
+ to be there authentication token. */
 
 app.get("/auth", (request, response) => {
   const tokenParams = {
@@ -474,8 +477,26 @@ setInterval(async () => {
   for (let i = 0; i < currentGames.length; i++) {
     if (currentGames[i].turn % 2 == 0) {
       currentGames[i].player1Time--;
+      if(currentGames[i].player1Time <= 0){
+        currentGames[i].player1Time = 0;
+        await gameChannels[i].publish("commands", {
+          winner: "bomber",
+          identifier: "winLoss",
+          winType:"The solver ran out of time!",
+          board:currentGames[i].board
+        });
+      }
     } else {
       currentGames[i].player2Time--;
+      if(currentGames[i].player2Time <= 0){
+        currentGames[i].player2Time = 0;
+        await gameChannels[i].publish("commands", {
+          winner: "solver",
+          identifier: "winLoss",
+          winType:"The bomber ran out of time!",
+          board:currentGames[i].board
+        });
+      }
     }
     await gameChannels[i].publish("time", {
       solverTime: currentGames[i].player1Time,

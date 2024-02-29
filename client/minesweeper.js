@@ -191,7 +191,9 @@ document.addEventListener("click", async (event) => {
         }
       }
       if (val) {
-        //Add the selected tile to the end of the array to send to the solver. Removes the earliest tile in the array that hasn't already been sent to the bomber if the amount of selected tiles is above the necessary amount.
+        /*Add the selected tile to the end of the array to send to the solver. 
+        Removes the earliest tile in the array that hasn't already been sent to the bomber if the amount 
+        of selected tiles is above the necessary amount.*/
         currentCollected.push({ pos: selected, fixed: false });
         if (currentCollected.length > revealAmount) {
           currentCollected.splice(currentFixedIndex, 1);
@@ -476,6 +478,6 @@ function renderCell(val, position) {
 }
 
 function resign() {
-  gameChannel.publish("resignation", {player:clientId});
+  gameChannel.publish("resignation", { player: clientId });
   window.location.replace("/");
 }

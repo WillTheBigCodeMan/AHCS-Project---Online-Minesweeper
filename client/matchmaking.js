@@ -1,4 +1,5 @@
-//Establishes a reference to the Ably matchmaking channel. It provides the /auth path as the url to request an authentication token.
+/*Establishes a reference to the Ably matchmaking channel.
+It provides the /auth path as the url to request an authentication token.*/
 
 const realtime = new Ably.Realtime({
   authUrl: "/auth",
@@ -16,13 +17,15 @@ function enterQueue() {
     matchmakingChannel.presence.enter();
     document
       .getElementById("nicknameForm")
-      .addEventListener('submit', () => pass);
+      .addEventListener('submit', null);
     document.getElementById("joinGame").value = "Matchmaking";
     connect();
   }
 }
 
-//After the user has joined the matchmaking channel, it awaits the servers response - a game channel. When the response is received it stores the game channel and the nickname in local storage and redirects the user to the gameroom page.
+/*After the user has joined the matchmaking channel, it awaits the servers response - a game channel. 
+When the response is received it stores the game channel and the nickname 
+in local storage and redirects the user to the gameroom page.*/
 
 async function connect() {
   await matchmakingChannel.subscribe(
